@@ -16,7 +16,7 @@
 
 package se.blunden.donotdisturbsync;
 
-import android.service.notification.NotificationListenerService;
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -32,44 +32,18 @@ import com.google.android.gms.wearable.Wearable;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-/**
- * A {@link NotificationListenerService} service needed to listen for DND state changes.
- */
-public class DNDSyncNotificationService extends NotificationListenerService {
-    private static final String TAG = "DNDSyncNotificationService";
+public class WearMessageSender {
+    private static final String TAG = "DNDSyncWearMessageSender";
     private static final String DND_SYNC_MODE = "/wear-dnd-sync";
     private static final String DND_SYNC_CAPABILITY = "wear-dnd-sync";
 
-    @Override
-    public void onListenerConnected() {
-        Log.d(TAG, "Service listener connected to notification manager");
-    }
-
-    @Override
-    public void onListenerDisconnected() {
-        Log.d(TAG, "Service listener disconnected from the notification manager");
-    }
-
-    @Override
-    public void onInterruptionFilterChanged(int interruptionFilter) {
-        super.onInterruptionFilterChanged(interruptionFilter);
-        Log.d(TAG, "Interruption filter changed to " + interruptionFilter);
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                sendDNDSyncMessage(interruptionFilter);
-            }
-        }).start();
-    }
-
-    private void sendDNDSyncMessage(int dndMode) {
+    public static void sendDNDSyncMessage(Context context, int dndMode) {
         Log.i(TAG, "Syncing new DND mode " + dndMode +" to nearby paired devices");
 
         // Search for compatible devices
         CapabilityInfo capabilityInfo;
         try {
-            capabilityInfo = Tasks.await(Wearable.getCapabilityClient(this)
+            capabilityInfo = Tasks.await(Wearable.getCapabilityClient(context)
                     .getCapability(DND_SYNC_CAPABILITY, CapabilityClient.FILTER_REACHABLE));
         } catch (InterruptedException e) {
             Log.e(TAG, "InterruptedException when searching for compatible reachable devices");
@@ -89,7 +63,7 @@ public class DNDSyncNotificationService extends NotificationListenerService {
         } else {
             for (Node node : connectedNodes) {
                 if (node.isNearby()) {
-                    Wearable.getMessageClient(this)
+                    Wearable.getMessageClient(context)
                             .sendMessage(node.getId(), DND_SYNC_MODE, String.valueOf(dndMode).getBytes())
                             .addOnSuccessListener(new OnSuccessListener<Integer>() {
                                 @Override
